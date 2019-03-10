@@ -30,6 +30,8 @@ import threading
 from operator import itemgetter
 
 import nfc
+import nfc.clf.device
+import nfc.clf.transport
 
 def get_test_methods(object):
     test_methods = list()
@@ -39,6 +41,19 @@ def get_test_methods(object):
             text = inspect.getdoc(func)
             test_methods.append((line, name.lstrip("test_"), text))
     return test_methods
+
+def threadwrap(threadfunc):
+    def wrapper(*args):
+        fail_count = 0
+        while fail_count < 3:
+            try:
+                threadfunc(*args)
+            except BaseException as e:
+                fail_count+=1
+                print('{!r}; restarting thread'.format(e))
+            else:
+                print('Exited normally; restarting')
+    return wrapper
 
 class TestFail(Exception):
     def __init__(self, value):
@@ -216,6 +231,31 @@ class CommandLineInterface(object):
             argument_parser.description += '  {0}   {1}\n'.format(
                 name.ljust(max_name_length), text)
         
+    def boot_readers(self):
+        clfs = []
+        for vid, pid, bus, dev in nfc.clf.transport.USB.find("usb"):
+            if (vid, pid) in nfc.clf.device.usb_device_map:
+                path = "usb:{0:03d}:{1:03d}".format(bus, dev)
+                try:
+                    clf = nfc.ContactlessFrontend(path)
+                    print("** Found %s" % clf.device)
+                    clfs.append(clf)
+                except IOError as error:
+                    if error.errno == errno.ENODEV:
+                        log.info("No contactless reader found on " + path)
+                    elif error.errno == errno.EACCES:
+                        log.info("Access denied for device with path " + path)
+                    elif error.errno == errno.EBUSY:
+                        log.info("The reader on " + path + " is busy")
+                    else:
+                        log.debug(repr(error) + "when trying " + path)
+        if not clfs:
+            log.error("No contactless reader available")
+            raise SystemExit(1)
+
+        for clf in clfs:
+            threading.Thread(target=threadwrap(self.run_once), args=(clf,)).start()
+
     def on_rdwr_startup(self, targets):
         return targets
 
@@ -281,29 +321,7 @@ class CommandLineInterface(object):
                 time.sleep(1)
         self.test_completed = True
 
-    def run_once(self):
-        if self.options.device is None:
-            self.options.device = ['usb']
-            
-        for path in self.options.device:
-            try:
-                clf = nfc.ContactlessFrontend(path)
-            except IOError as error:
-                if error.errno == errno.ENODEV:
-                    log.info("no contactless reader found on " + path)
-                elif error.errno == errno.EACCES:
-                    log.info("access denied for device with path " + path)
-                elif error.errno == errno.EBUSY:
-                    log.info("the reader on " + path + " is busy")
-                else:
-                    log.debug(repr(error) + "when trying " + path)
-            else:
-                log.debug("found a usable reader on " + path)
-                break
-        else:
-            log.error("no contactless reader available")
-            raise SystemExit(1)
-
+    def run_once(self, clf):
         if "rdwr" in self.groups:
             rdwr_options = {
                 'on-startup': self.on_rdwr_startup,
@@ -360,9 +378,7 @@ class CommandLineInterface(object):
             clf.close()
             
     def run(self):
-        while self.run_once() and self.options.loop:
-            log.info("*** RESTART ***")
-
+        self.boot_readers()
 
 # ColorStreamHandler for python logging framework.
 # based on: http://stackoverflow.com/questions/384076/1336640#1336640

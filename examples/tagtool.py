@@ -90,7 +90,7 @@ def parse_uint24(string):
 #
 # command parsers
 #
-def add_show_parser(parser):
+def add_read_parser(parser):
     pass
 
 def add_dump_parser(parser):
@@ -174,8 +174,8 @@ class TagTool(CommandLineInterface):
             help="unlock with password if supported")
         subparsers = parser.add_subparsers(
             title="commands", dest="command")
-        add_show_parser(subparsers.add_parser(
-                'show', help='pretty print ndef data'))
+        add_read_parser(subparsers.add_parser(
+                'read', help='pretty print ndef data'))
         add_dump_parser(subparsers.add_parser(
                 'dump', help='read ndef data from tag'))
         add_load_parser(subparsers.add_parser(
@@ -183,7 +183,7 @@ class TagTool(CommandLineInterface):
         add_emulate_parser(subparsers.add_parser(
                 'emulate', help='emulate an ndef tag'))
 
-        self.rdwr_commands = {"show": self.show_tag,
+        self.rdwr_commands = {"read": self.read_tag,
                               "dump": self.dump_tag,
                               "load": self.load_tag,}
     
@@ -229,17 +229,11 @@ class TagTool(CommandLineInterface):
         self.emulate_tag_stop(tag)
         return True
 
-    def show_tag(self, tag):
+    def read_tag(self, tag):
         print(tag)
-        
         if tag.ndef:
-            print("NDEF Capabilities:")
-            print("  readable  = %s" % ("no","yes")[tag.ndef.is_readable])
-            print("  writeable = %s" % ("no","yes")[tag.ndef.is_writeable])
-            print("  capacity  = %d byte" % tag.ndef.capacity)
-            print("  message   = %d byte" % tag.ndef.length)
             if tag.ndef.length > 0:
-                print("NDEF Message:")
+                print("Tag message:")
                 print(tag.ndef.message.pretty())
         
         if self.options.verbose:
@@ -390,9 +384,7 @@ if __name__ == '__main__':
         sys.exit(0)
 
     if len(prog) == 1:
-        sys.argv = sys.argv + ['show']
-    elif prog[-1] == "format":
-        sys.argv = sys.argv + ['any']
+        sys.argv = sys.argv + ['read']
 
     try:
         TagTool().run()
