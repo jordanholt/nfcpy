@@ -19,8 +19,9 @@ python app/kitchen-readers.py
 
 When readers are first connected on Linux, they may be locked by the Linux NFC subsystem kernel driver. To release them, run:
 ```
-sudo modprobe -r pn533_usb
+sudo modprobe -r pn533_usb --loop
 ```
+> Remove the `--loop` switch to continuously read tag data
 
 Other errors and potential fixes can be found by running:
 ```
