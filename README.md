@@ -12,7 +12,7 @@ Run the following commands in order:
 
 To launch the simultaneous multi-reader implementation, run:
 ```
-python examples/tagtool.py --loop
+python app/kitchen-readers.py
 ```
 
 ## Troubleshooting
