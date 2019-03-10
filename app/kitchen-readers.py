@@ -38,6 +38,8 @@ import nfc
 import nfc.clf
 import nfc.ndef
 
+import requests
+
 def parse_version(string):
     try: major_version, minor_version = map(int, string.split('.'))
     except ValueError, AttributeError:
@@ -143,7 +145,8 @@ class TagTool(CommandLineInterface):
         if tag.ndef:
             if tag.ndef.length > 0:
                 print("Tag message:")
-                print(tag.ndef.message.pretty())
+                print(tag.ndef.message.data()) # tag.ndef.message.data() is what you'll send in the POST body
+                # r = requests.post('http://localhost:8080/api/smartKitchen/', data = {'readerId:', 'id-goes-here'})
         
         if self.options.verbose:
             print("Memory Dump:")

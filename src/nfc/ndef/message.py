@@ -171,4 +171,8 @@ class Message(object):
         lines = [(line[0].ljust(lwidth),) + line[1:] for line in lines]
         lines = [" = ".join(line) for line in lines]
         return ("\n").join([line for line in lines])
+
+    def data(self):
+        """Returns a data in first record."""
+        return repr(self._records[0].data)
         
