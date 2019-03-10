@@ -232,14 +232,13 @@ class CommandLineInterface(object):
                 name.ljust(max_name_length), text)
         
     def boot_readers(self):
-        clfs = []
+        clf_paths = {}
         for vid, pid, bus, dev in nfc.clf.transport.USB.find("usb"):
             if (vid, pid) in nfc.clf.device.usb_device_map:
                 path = "usb:{0:03d}:{1:03d}".format(bus, dev)
                 try:
-                    clf = nfc.ContactlessFrontend(path)
-                    print("** Found %s" % clf.device)
-                    clfs.append(clf)
+                    clf = nfc.ContactlessFrontend()
+                    clf_paths[path] = clf
                 except IOError as error:
                     if error.errno == errno.ENODEV:
                         log.info("No contactless reader found on " + path)
@@ -249,12 +248,12 @@ class CommandLineInterface(object):
                         log.info("The reader on " + path + " is busy")
                     else:
                         log.debug(repr(error) + "when trying " + path)
-        if not clfs:
+        if not clf_paths:
             log.error("No contactless reader available")
             raise SystemExit(1)
 
-        for clf in clfs:
-            threading.Thread(target=threadwrap(self.run_once), args=(clf,)).start()
+        for path, clf in clf_paths.iteritems():
+            threading.Thread(target=threadwrap(self.run_once), args=(clf, path)).start()
 
     def on_rdwr_startup(self, targets):
         return targets
@@ -321,7 +320,7 @@ class CommandLineInterface(object):
                 time.sleep(1)
         self.test_completed = True
 
-    def run_once(self, clf):
+    def run_once(self, clf, path):
         if "rdwr" in self.groups:
             rdwr_options = {
                 'on-startup': self.on_rdwr_startup,
@@ -370,6 +369,7 @@ class CommandLineInterface(object):
             card_options = None
 
         try:
+            clf.open(path)
             kwargs = {'llcp': llcp_options,
                       'rdwr': rdwr_options,
                       'card': card_options}
